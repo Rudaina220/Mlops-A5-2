@@ -34,7 +34,7 @@ jobs:
     
     - name: Pull data with DVC
       run: |
-        dvc pull || echo "✅ DVC pull completed (mock data already available)"
+        dvc pull || echo "DVC pull completed (mock data already available)"
     
     - name: Pull data with DVC
       run: |
@@ -86,7 +86,7 @@ jobs:
     
     - name: Check accuracy threshold
       run: |
-        python check_threshold.py
+        python check.py
     
     - name: Mock Docker Build
       if: success()
