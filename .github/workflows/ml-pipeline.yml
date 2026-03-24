@@ -9,7 +9,7 @@ on:
 jobs:
   validate:
     name: Validate Model
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, windows, x64]
 
     env:
       MLFLOW_TRACKING_URI: ${{ secrets.mlflow_uri }}
@@ -25,33 +25,37 @@ jobs:
         with:
           python-version: "3.10"
 
-      - name: Install system tools
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y unzip
-
-      - name: Install Python dependencies
+      - name: Install dependencies
+        shell: powershell
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install dvc mlflow
 
       - name: Configure DVC remote authentication
+        shell: powershell
         run: |
-          dvc remote modify --local origin user "$KOOFR_USER"
-          dvc remote modify --local origin password "$KOOFR_PASS"
+          dvc remote modify --local origin user "$env:KOOFR_USER"
+          dvc remote modify --local origin password "$env:KOOFR_PASS"
 
       - name: Pull dataset with DVC
-        run: dvc pull
+        shell: powershell
+        run: |
+          dvc pull
 
       - name: Run training
-        run: python train.py
+        shell: powershell
+        run: |
+          python train.py
 
       - name: Verify model_info.txt exists
+        shell: powershell
         run: |
-          test -f model_info.txt || (echo "model_info.txt not found" && exit 1)
-          echo "model_info.txt content:"
-          cat model_info.txt
+          if (!(Test-Path "model_info.txt")) {
+            Write-Host "model_info.txt not found"
+            exit 1
+          }
+          Write-Host "model_info.txt content:"
+          Get-Content model_info.txt
 
       - name: Upload model_info.txt artifact
         uses: actions/upload-artifact@v4
@@ -61,8 +65,8 @@ jobs:
 
   deploy:
     name: Deploy Model
-    runs-on: ubuntu-latest
     needs: validate
+    runs-on: [self-hosted, windows, x64]
 
     env:
       MLFLOW_TRACKING_URI: ${{ secrets.mlflow_uri }}
@@ -76,30 +80,36 @@ jobs:
         with:
           python-version: "3.10"
 
-      - name: Install Python dependencies
+      - name: Install dependencies
+        shell: powershell
         run: |
           python -m pip install --upgrade pip
-          pip install mlflow
+          pip install -r requirements.txt
 
       - name: Download model_info.txt artifact
         uses: actions/download-artifact@v4
         with:
           name: model-info
 
-      - name: Show downloaded artifact
+      - name: Show downloaded file
+        shell: powershell
         run: |
-          echo "Downloaded files:"
-          ls -la
-          echo "Run ID inside model_info.txt:"
-          cat model_info.txt
+          Get-ChildItem
+          Get-Content model_info.txt
 
       - name: Check accuracy threshold
-        run: python check_threshold.py
+        shell: powershell
+        run: |
+          python check_threshold.py
 
       - name: Mock Build
+        shell: powershell
         run: |
-          echo "Building Docker image for Run ID: $(cat model_info.txt)"
+          $runid = Get-Content model_info.txt
+          Write-Host "Building Docker image for Run ID: $runid"
 
       - name: Docker build
+        shell: powershell
         run: |
-          docker build --build-arg RUN_ID=$(cat model_info.txt) -t mlops-model:latest .
+          $runid = Get-Content model_info.txt
+          docker build --build-arg RUN_ID=$runid -t mlops-model:latest .
