@@ -9,7 +9,7 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     env:
-      MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
+      MLFLOW_TRACKING_URI: ${{ secrets.mlflow_uri }}
     
     steps:
     - uses: actions/checkout@v4
@@ -64,7 +64,7 @@ jobs:
     needs: validate
     if: needs.validate.result == 'success'
     env:
-      MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
+      MLFLOW_TRACKING_URI: ${{ secrets.mlflow_uri }}
     
     steps:
     - uses: actions/checkout@v4
