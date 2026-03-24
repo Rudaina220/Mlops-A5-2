@@ -112,12 +112,13 @@ jobs:
         python-version: '3.10'
     
     - name: Install MLflow
-      run: |
-        pip install mlflow
+      run: pip install mlflow==2.9.2
     
     - name: Check accuracy threshold
+      env:
+        MLFLOW_TRACKING_URI: ./mlruns 
       run: |
-        python check.py
+        python check_threshold.py
     
     - name: Mock Docker Build
       if: success()
