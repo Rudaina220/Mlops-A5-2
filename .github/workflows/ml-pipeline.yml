@@ -28,14 +28,29 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install mlflow==2.9.2 dvc scikit-learn pandas numpy
-
+    
     - name: Configure DVC (mock for demo)
       run: |
-        mkdir -p .dvc
+        mkdir -p .dvc data mlruns
         echo "data/" > .dvc/.gitignore
-        mkdir -p data
-        echo "mock_id,feature1,feature2,target\n1,0.1,0.2,0\n2,0.3,0.4,1\n3,0.5,0.6,1\n4,0.7,0.8,0" > data/train.csv
-        echo "DVC setup complete - mock data created"
+        echo "mock_id,feature1,feature2,target" > data/train.csv
+        echo "1,0.1,0.2,0" >> data/train.csv
+        echo "2,0.3,0.4,1" >> data/train.csv
+        echo "3,0.5,0.6,1" >> data/train.csv
+        echo "4,0.7,0.8,0" >> data/train.csv
+        echo "5,0.9,0.1,1" >> data/train.csv
+        echo "DVC + MLflow storage ready"
+    
+    - name: Train model (File-based MLflow)
+      env:
+        MLFLOW_TRACKING_URI: ./mlruns
+      run: |
+        python train.py
+    
+    - name: Verify model_info.txt
+      run: |
+        cat model_info.txt
+        test -f model_info.txt && echo "model_info.txt created"
         
     - name: Train model 
       env:
