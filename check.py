@@ -1,46 +1,30 @@
-import os
-import sys
 import mlflow
+import sys
+import os
 
-THRESHOLD = 0.85
+print("Checking model quality...")
 
-def main():
-    tracking_uri = os.getenv("MLFLOW_TRACKING_URI")
-    if not tracking_uri:
-        print("Error: MLFLOW_TRACKING_URI is not set.")
+mlflow.set_tracking_uri("file:./mlruns")
+
+with open('model_info.txt', 'r') as f:
+    run_id = f.read().strip()
+
+print(f"Checking Run ID: {run_id}")
+
+try:
+    client = mlflow.tracking.MlflowClient()
+    run = client.get_run(run_id)
+    accuracy = run.data.metrics.get('accuracy', 0.0)
+    
+    print(f"Measured Accuracy: {accuracy:.3f}")
+    
+    if accuracy < 0.85:
+        print("FAILED: Accuracy below threshold (0.85)")
         sys.exit(1)
-
-    mlflow.set_tracking_uri(tracking_uri)
-
-    if not os.path.exists("model_info.txt"):
-        print("Error: model_info.txt does not exist.")
-        sys.exit(1)
-
-    with open("model_info.txt", "r", encoding="utf-8") as f:
-        run_id = f.read().strip()
-
-    if not run_id:
-        print("Error: model_info.txt is empty.")
-        sys.exit(1)
-
-    print(f"Checking MLflow run: {run_id}")
-
-    run = mlflow.get_run(run_id)
-    metrics = run.data.metrics
-
-    if "accuracy" not in metrics:
-        print("Error: accuracy metric not found in MLflow run.")
-        sys.exit(1)
-
-    accuracy = metrics["accuracy"]
-    print(f"Accuracy = {accuracy}")
-    print(f"Threshold = {THRESHOLD}")
-
-    if accuracy < THRESHOLD:
-        print("Pipeline failed: accuracy is below threshold.")
-        sys.exit(1)
-
-    print("Threshold passed. Deployment can continue.")
-
-if __name__ == "__main__":
-    main()
+    else:
+        print("PASSED: Quality gate cleared!")
+        sys.exit(0)
+        
+except Exception as e:
+    print(f"Error checking run: {e}")
+    sys.exit(1)
