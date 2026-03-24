@@ -8,16 +8,9 @@ on:
 jobs:
   validate:
     runs-on: ubuntu-latest
-    env:
-      MLFLOW_TRACKING_URI: ${{ secrets.mlflow_uri }}
     
     steps:
     - uses: actions/checkout@v4
-    
-    - name: Set up Python 3.10
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.10'
     
     - name: Set up Python 3.10
       uses: actions/setup-python@v5
@@ -29,7 +22,7 @@ jobs:
         python -m pip install --upgrade pip
         pip install mlflow==2.9.2 dvc scikit-learn pandas numpy
     
-    - name: Configure DVC (mock for demo)
+    - name: Setup storage
       run: |
         mkdir -p .dvc data mlruns
         echo "data/" > .dvc/.gitignore
@@ -39,49 +32,11 @@ jobs:
         echo "3,0.5,0.6,1" >> data/train.csv
         echo "4,0.7,0.8,0" >> data/train.csv
         echo "5,0.9,0.1,1" >> data/train.csv
-        echo "DVC + MLflow storage ready"
     
-    - name: Train model (File-based MLflow)
+    - name: Train model
       env:
         MLFLOW_TRACKING_URI: ./mlruns
-      run: |
-        python train.py
-    
-    - name: Verify model_info.txt
-      run: |
-        cat model_info.txt
-        test -f model_info.txt && echo "model_info.txt created"
-        
-    - name: Train model 
-      env:
-        MLFLOW_TRACKING_URI: ./mlruns
-      run: |
-        python train.py
-    
-    - name: Verify model_info.txt
-      run: |
-        cat model_info.txt
-        test -f model_info.txt && echo "model_info.txt created"
-    
-    - name: Pull data with DVC
-      run: |
-        dvc pull || echo "DVC pull completed (mock data already available)"
-    
-    - name: Pull data with DVC
-      run: |
-        dvc pull || echo "DVC pull completed (mock)"
-    
-    - name: Train model and log to MLflow
-      run: |
-        python train.py
-    
-    - name: Export MLflow Run ID
-      id: mlflow-run
-      run: |
-        RUN_ID=$(mlflow runs list --experiment-id 0 --max-results 1 --output-table | tail -n1 | awk '{print $1}')
-        echo "MLflow Run ID: $RUN_ID"
-        echo $RUN_ID > model_info.txt
-        echo "run_id=$RUN_ID" >> $GITHUB_OUTPUT
+      run: python train.py
     
     - name: Upload model info artifact
       uses: actions/upload-artifact@v4
@@ -94,8 +49,6 @@ jobs:
     runs-on: ubuntu-latest
     needs: validate
     if: needs.validate.result == 'success'
-    env:
-      MLFLOW_TRACKING_URI: ${{ secrets.mlflow_uri }}
     
     steps:
     - uses: actions/checkout@v4
@@ -116,13 +69,11 @@ jobs:
     
     - name: Check accuracy threshold
       env:
-        MLFLOW_TRACKING_URI: ./mlruns 
-      run: |
-        python check_threshold.py
+        MLFLOW_TRACKING_URI: ./mlruns
+      run: python check_threshold.py
     
     - name: Mock Docker Build
       if: success()
       run: |
         RUN_ID=$(cat model_info.txt)
         echo "Building Docker image for Run ID: $RUN_ID"
-        echo "docker build --build-arg RUN_ID=$RUN_ID -t ml-model:$RUN_ID ."
